@@ -3,6 +3,7 @@ import os
 import numpy as np
 #import matplotlib
 import matplotlib.pyplot as plt
+import geojson
 
 def readCSV(url):
     return pd.read_csv(url)
@@ -49,13 +50,13 @@ def process(url):
 
     # print(max)
     # print(min)
-    # conditions = [
-    # (df['val'] < 100),
-    # (df['val'] >= 100) & (df['val'] <= 150),
-    # (df['val'] > 150)
-    # ]
+    conditions = [
+    (df['val'] < 100),
+    (df['val'] >= 100) & (df['val'] <= 150),
+    (df['val'] > 150)
+    ]
 
-    # df["level"] = np.select(conditions, ["low", "medium", "high"])
+    df["level"] = np.select(conditions, ["low", "medium", "high"])
     #print(df[df["level"] == "low"])
     #df["level"] = "high" if df["val"] > secondAnchor else df["level"]
     # print(df[df["val"] < firstAnchor])
@@ -67,18 +68,18 @@ def process(url):
     # df.plot.scatter(x = 'idx', y = 'val', c = 'blue')
     # plt.show()
     #print(map)
-    # for key in map:
-    #     fileName = map[key] + ".csv"
-    #     childDf = df[df["sensorid"] == key]
-    #     #print(df[df["sensorid"] == key])
-    #     newPath = os.path.join(filepath, fileName).replace("\\", "/")
-    #     childDf.to_csv(newPath, index = False, header = True)
-    # levels = ["low", "medium", "high"]
-    # for level in levels:
-    #     fileName = level+ ".csv"
-    #     childDf = df[df["level"] == level]
-    #     newPath = os.path.join(filepath, fileName).replace("\\", "/")
-    #     childDf.to_csv(newPath, index = False, header = True)
+    for key in map:
+        fileName = map[key] + ".csv"
+        childDf = df[df["sensorid"] == key]
+        #print(df[df["sensorid"] == key])
+        newPath = os.path.join(filepath, fileName).replace("\\", "/")
+        childDf.to_csv(newPath, index = False, header = True)
+    levels = ["low", "medium", "high"]
+    for level in levels:
+        fileName = level+ ".csv"
+        childDf = df[df["level"] == level]
+        newPath = os.path.join(filepath, fileName).replace("\\", "/")
+        childDf.to_csv(newPath, index = False, header = True)
     df["date"] = df["timestamp"].apply(lambda x : pd.Timestamp.date(pd.Timestamp(x)))
     map = dict()
     if(url.find("MobileSensorReadings") != -1):
@@ -101,19 +102,16 @@ def fillMapDates(df, map, isMobile):
         else:
             map[date] = "Static" + str(date)
 
-        
-        
-
-    
-
-
-
+def geoJson(url):
+    with open(url) as f:
+        data = geojson.load(f)
+    print(data)
 
 def main():
-    process("./../data/StaticSensorReadings.csv")
+    #process("./../data/StaticSensorReadings.csv")
+    geoJson("./../data/map.geojson")
 
 
 if __name__ == "__main__":
-    
     main()
 
