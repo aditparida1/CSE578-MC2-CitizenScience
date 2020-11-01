@@ -216,11 +216,55 @@ def applyArea(row, geoPoly):
         if(geoPoly[str(i)].contains(point)):
             return str(i)
     return "none"
+
+def geoJsonforStatic(url, url2):
+    data = None
+    with open(url) as f:
+        data = geojson.load(f)
+    # print(data)
+    features = data['features']
+    # print(features)
+    geoMap = dict()
+    for obj in features:
+        # print(obj)
+        geo = obj["geometry"]
+        properties = obj["properties"]
+        #id = str(properties["Id"])
+        geoMap[str(properties["Id"])] = geo
+    # print(geoMap)
+    #-119.83035,0.14007
+    geoPoly = dict()
+    for i in range(1,20):
+        geoPoly[str(i)] = shape(geoMap[str(i)])
+    # print(geoPoly)
+    point = Point(-13339453.54,15592.54)
+    for i in range(1, 20):
+        #print(geoPoly[str(i)].contains(point))
+        if(geoPoly[str(i)].contains(point)):
+            print("Got it" + str(i))
+            break
+    df = readCSV(url2)
+    #map = dict()
+    df.columns = ["sensorid", "lat", "long"]
+    df["convLong"] = df["long"].apply(lon2x)
+    df["convLat"] = df["lat"].apply(lat2y)
+    df["area"] = df.apply(lambda row: applyArea(row, geoPoly), axis = 1)
+    print(df)
+    
+    filepath = os.path.dirname( os.path.abspath(__file__))
+    filepath = os.path.join(filepath, "./../data/processed").replace("\\", "/")
+    
+    if(not os.path.isdir(filepath)):
+        os.mkdir(filepath)
+    fileName = "StaticSensorLocationsAreaUpdated.csv"
+    newPath =  os.path.join(filepath, fileName).replace("\\", "/")
+    df.to_csv(newPath, index = False, header = True)
+
 def main():
     # process("./../data/MobileSensorReadings.csv")
-    geoJson("./../data/map.geojson", "./../data/MobileSensorReadings.csv")
+    #geoJson("./../data/map.geojson", "./../data/MobileSensorReadings.csv")
     #print('latitude web mercator y: {} longitude web mercator x: {}'.format(lat2y(0.14007 ), lon2x(-119.83035)))
-
+    geoJsonforStatic("./../data/map.geojson", "./../data/StaticSensorLocations.csv")
     
 
 if __name__ == "__main__":
