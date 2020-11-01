@@ -4,6 +4,9 @@ import numpy as np
 #import matplotlib
 import matplotlib.pyplot as plt
 import geojson
+from shapely.geometry import shape, Point
+import math
+import pyproj
 
 def readCSV(url):
     return pd.read_csv(url)
@@ -103,13 +106,45 @@ def fillMapDates(df, map, isMobile):
             map[date] = "Static" + str(date)
 
 def geoJson(url):
+    data = None
     with open(url) as f:
         data = geojson.load(f)
-    print(data)
+    # print(data)
+    features = data['features']
+    # print(features)
+    geoMap = dict()
+    for obj in features:
+        # print(obj)
+        geo = obj["geometry"]
+        properties = obj["properties"]
+        #id = str(properties["Id"])
+        geoMap[str(properties["Id"])] = geo
+    # print(geoMap)
+    #-119.83035,0.14007
+    geoPoly = dict()
+    for i in range(1,20):
+        geoPoly[str(i)] = shape(geoMap[str(i)])
+    print(geoPoly)
+    point = Point(-13339453.54,15592.54)
+    for i in range(1, 20):
+        print(geoPoly[str(i)].contains(point))
+        if(geoPoly[str(i)].contains(point)):
+            print("Got it" + str(i))
+            break
 
+
+# derived from the Java version explained here: http://wiki.openstreetmap.org/wiki/Mercator
+RADIUS = 6378137.0 # in meters on the equator
+
+def lat2y(a):
+  return math.log(math.tan(math.pi / 4 + math.radians(a) / 2)) * RADIUS
+
+def lon2x(a):
+  return math.radians(a) * RADIUS
 def main():
     #process("./../data/StaticSensorReadings.csv")
     geoJson("./../data/map.geojson")
+    print('latitude web mercator y: {} longitude web mercator x: {}'.format(lat2y(0.14007 ), lon2x(-119.83035)))
 
 
 if __name__ == "__main__":
