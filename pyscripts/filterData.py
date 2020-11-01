@@ -18,7 +18,7 @@ def fillMap(df, map, isMobile):
             map[id] = "MobileSensor" + str(id)
         else:
             map[id] = "StaticSensor" + str(id)
-    
+
 # def getMin(df):
 #     min = -1
 #     for index, row in df.iterrows():
@@ -33,7 +33,7 @@ def process(url):
     map = dict()
     df = readCSV(url)
     # print(df.head())
-    
+
     if(url.find("MobileSensorReadings") != -1):
         df.columns = ["timestamp", "sensorid", "long", "lat", "val", "units", "userid"]
         fillMap(df, map, True)
@@ -42,17 +42,20 @@ def process(url):
         fillMap(df, map, False)
     filepath = os.path.dirname( os.path.abspath(__file__))
     filepath = os.path.join(filepath, "./../data/processed").replace("\\", "/")
+    
     if(not os.path.isdir(filepath)):
         # print(os.path.isdir(filepath))
         # print(filepath)
         os.mkdir(filepath)
-    
+
     # max = df["val"].max()
-    
+
     # min = df["val"].min()
 
     # print(max)
     # print(min)
+    df["convLong"] = df["long"].apply(lon2x)
+    df["convLat"] = df["lat"].apply(lat2y)
     conditions = [
     (df['val'] < 100),
     (df['val'] >= 100) & (df['val'] <= 150),
@@ -89,7 +92,7 @@ def process(url):
         fillMapDates(df, map, True)
     else:
         fillMapDates(df, map, False)
-    
+
     for date in map:
         fileName = map[date] + ".csv"
         childDf = df[df['date'] == date]
@@ -105,7 +108,7 @@ def fillMapDates(df, map, isMobile):
         else:
             map[date] = "Static" + str(date)
 
-def geoJson(url):
+def geoJson(url, url2):
     data = None
     with open(url) as f:
         data = geojson.load(f)
@@ -124,14 +127,78 @@ def geoJson(url):
     geoPoly = dict()
     for i in range(1,20):
         geoPoly[str(i)] = shape(geoMap[str(i)])
-    print(geoPoly)
+    # print(geoPoly)
     point = Point(-13339453.54,15592.54)
     for i in range(1, 20):
-        print(geoPoly[str(i)].contains(point))
+        #print(geoPoly[str(i)].contains(point))
         if(geoPoly[str(i)].contains(point)):
             print("Got it" + str(i))
             break
+    df = readCSV(url2)
+    map = dict()
+    if(url2.find("MobileSensorReadings") != -1):
+        df.columns = ["timestamp", "sensorid", "long", "lat", "val", "units", "userid"]
+        fillMap(df, map, True)
+    else:
+        df.columns = ["timestamp", "sensorid", "val", "units"]
+        fillMap(df, map, False)
+    
+    filepath = os.path.dirname( os.path.abspath(__file__))
+    filepath = os.path.join(filepath, "./../data/processed").replace("\\", "/")
+    
+    if(not os.path.isdir(filepath)):
+        os.mkdir(filepath)
 
+    df["convLong"] = df["long"].apply(lon2x)
+    df["convLat"] = df["lat"].apply(lat2y)
+    # print(df.head())
+    conditions = [
+    (df['val'] < 100),
+    (df['val'] >= 100) & (df['val'] <= 150),
+    (df['val'] > 150)
+    ]
+
+    df["level"] = np.select(conditions, ["low", "medium", "high"])
+    #df = df.head()    
+    df["area"] = df.apply(lambda row: applyArea(row, geoPoly), axis = 1)
+
+    print(df)
+
+    for key in map:
+        fileName = map[key] + ".csv"
+        childDf = df[df["sensorid"] == key]
+        #print(df[df["sensorid"] == key])
+        newPath = os.path.join(filepath, fileName).replace("\\", "/")
+        childDf.to_csv(newPath, index = False, header = True)
+    levels = ["low", "medium", "high"]
+    for level in levels:
+        fileName = level+ ".csv"
+        childDf = df[df["level"] == level]
+        newPath = os.path.join(filepath, fileName).replace("\\", "/")
+        childDf.to_csv(newPath, index = False, header = True)
+    df["date"] = df["timestamp"].apply(lambda x : pd.Timestamp.date(pd.Timestamp(x)))
+    map = dict()
+    if(url2.find("MobileSensorReadings") != -1):
+        fillMapDates(df, map, True)
+    else:
+        fillMapDates(df, map, False)
+
+    for date in map:
+        fileName = map[date] + ".csv"
+        childDf = df[df['date'] == date]
+        newPath = os.path.join(filepath, fileName).replace("\\", "/")
+        childDf.to_csv(newPath, index = False, header = True)
+    for i in range(1, 21):
+        if(i == 20):
+            fileName = "none.csv"
+            childDf = df[df["area"] == "none"]
+            newPath =  os.path.join(filepath, fileName).replace("\\", "/")
+            childDf.to_csv(newPath, index = False, header = True)
+        else:
+            fileName = str(i) + ".csv"
+            childDf = df[df["area"] == str(i)]
+            newPath = os.path.join(filepath, fileName).replace("\\", "/")
+            childDf.to_csv(newPath, index = False, header = True)
 
 # derived from the Java version explained here: http://wiki.openstreetmap.org/wiki/Mercator
 RADIUS = 6378137.0 # in meters on the equator
@@ -141,11 +208,20 @@ def lat2y(a):
 
 def lon2x(a):
   return math.radians(a) * RADIUS
-def main():
-    #process("./../data/StaticSensorReadings.csv")
-    geoJson("./../data/map.geojson")
-    print('latitude web mercator y: {} longitude web mercator x: {}'.format(lat2y(0.14007 ), lon2x(-119.83035)))
 
+def applyArea(row, geoPoly):
+    for i in range(1, 20):
+        #print(geoPoly[str(i)].contains(point))
+        point = Point(row["convLong"], row["convLat"])
+        if(geoPoly[str(i)].contains(point)):
+            return str(i)
+    return "none"
+def main():
+    # process("./../data/MobileSensorReadings.csv")
+    geoJson("./../data/map.geojson", "./../data/MobileSensorReadings.csv")
+    #print('latitude web mercator y: {} longitude web mercator x: {}'.format(lat2y(0.14007 ), lon2x(-119.83035)))
+
+    
 
 if __name__ == "__main__":
     main()
