@@ -1,4 +1,4 @@
-div#sankeyDiv
+#sankeyDiv
 {
     position: absolute;
     width: 90%;
@@ -6,10 +6,36 @@ div#sankeyDiv
     background-color: aliceblue;
 }
 
-svg#sankeySVG
+#sankeySVG
 {
     width: 100%;
     height: 600px;
     border:1px solid gray;
     border-radius:10px;
 }
+
+.float-left
+{
+    float: left;
+
+}
+.element {
+    float: left;
+    width: 20%;
+    height: 20%;
+    background: #ce8888;
+    margin: 5px
+  
+  }
+
+.float-container {
+    border: 3px solid #fff;
+    padding: 20px;
+}
+
+.float-child {
+    width: 50%;
+    float: left;
+    padding: 20px;
+    border: 2px solid red;
+} 
